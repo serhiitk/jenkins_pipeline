@@ -1,0 +1,101 @@
+---
+- name: Install and configure Jenkins
+  hosts: jenkins_server
+  become: yes
+  vars_files:
+    - vars/default_vars.yml
+
+  tasks:
+
+    - name: Install Java
+      apt:
+        name: "{{ java_version }}"
+        state: present
+        update_cache: yes
+
+    - name: Install required system packages (for Docker)
+      apt:
+        name: "{{ docker_dependencies }}"
+        state: present
+        update_cache: yes
+
+    - name: Add Docker’s official GPG key
+      apt_key:
+        url: https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg
+        id: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+        state: present
+
+    - name: Add Docker’s DEB repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable
+        state: present
+        update_cache: yes
+
+    - name: Install Docker-CE
+      apt:
+        name: ['docker-ce','docker-ce-cli','containerd.io']
+        state: present
+
+    - name: Add Jenkins official GPG key
+      apt_key:
+        url: https://pkg.jenkins.io/debian/jenkins.io.key
+        id: 62A9756BFD780C377CF24BA8FCEF32E745F2C3D5
+        state: present
+
+    - name: Add Jenkins DEB repository
+      apt_repository:
+        repo: deb https://pkg.jenkins.io/debian binary/
+        state: present
+        update_cache: yes
+
+    - name: Install Jenkins
+      apt:
+        name: jenkins
+        state: present
+
+    - name: Add jenkins user to docker group
+      user:
+        name: jenkins
+        groups: docker
+        append: true
+      notify: restart Jenkins
+
+    - name: Ensure Docker is started and enabled at boot
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Ensure Jenkins is started and runs on startup
+      service:
+        name: jenkins
+        state: started
+        enabled: yes
+
+    - name: Uploading Jenkins configuration
+      copy:
+        src: "{{ jenkins_restore_name }}"
+        dest: "/tmp/"
+      notify:
+        - stop Jenkins
+        - unpack Jenkins config
+        - restart Jenkins
+
+  handlers:
+
+    - name: stop Jenkins
+      service:
+        name: jenkins
+        state: stopped
+
+    - name: unpack Jenkins config
+      unarchive:
+        remote_src: yes
+        src: "/tmp/{{ jenkins_restore_name }}"
+        dest: "{{ jenkins_home }}"
+
+    - name: restart Jenkins
+      service:
+        name: jenkins
+        state: restarted
+...

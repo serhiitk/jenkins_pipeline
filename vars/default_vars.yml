@@ -1,0 +1,26 @@
+---
+  java_version: 'openjdk-11-jdk'
+
+  gitlab_host_ip: "192.168.16.161"
+  gitlab_url_domain: "gitlab.example.com"
+
+  nexus_host_ip: "192.168.77.96"
+  nexus_url_domain: "nexus.example.com"
+  nexus_repository_port: 18093
+  nexus_repository_url: "{{ nexus_url_domain }}:{{ nexus_repository_port }}"
+
+  jenkins_host_ip: "192.168.77.96"
+  jenkins_url_domain: "jenkins.example.com"
+
+  docker_dependencies:
+    - 'apt-transport-https'
+    - 'ca-certificates'
+    - 'curl'
+    - 'gnupg-agent'
+    - 'software-properties-common'
+
+  jenkins_home: "/var/lib/jenkins"
+  jenkins_backup_name: "jenkins-backup"
+  jenkins_backup_path: "/tmp/{{ jenkins_backup_name }}-{{ backup_date_time }}.tar.gz"
+  jenkins_restore_name: "{{ jenkins_backup_name }}.tar.gz"
+...

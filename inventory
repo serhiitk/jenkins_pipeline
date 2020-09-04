@@ -1,0 +1,16 @@
+###############################################################################
+[ext_gitlabci_server]
+192.168.16.161
+
+[jenkins_server]
+192.168.56.181
+
+[ext_gitlabci_server:vars]
+ansible_user=vagrant
+ansible_private_key_file=./hosts/ext-GitLabCI-server/certs/private_key
+ansible_python_interpreter=/usr/bin/python
+
+[jenkins_server:vars]
+ansible_user=vagrant
+ansible_private_key_file=./hosts/Jenkins-server/.vagrant/machines/default/virtualbox/private_key
+ansible_python_interpreter=/usr/bin/python

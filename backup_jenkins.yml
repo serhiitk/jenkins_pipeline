@@ -1,0 +1,38 @@
+---
+- name: Backup Jenkins home directory
+  gather_facts: no
+  hosts: jenkins_server
+  become: yes
+  vars_files:
+    - vars/default_vars.yml
+
+  tasks:
+
+    - set_fact:
+        backup_date_time: "{{ lookup('pipe','date +%d%m%Y-%H%M%S') }}"
+
+    - name: Creating a .tar.gz archive from $JENKINS_HOME directory
+      archive:
+        path:
+          - "{{ jenkins_home }}/*.xml"
+          - "{{ jenkins_home }}/*.key*"
+          - "{{ jenkins_home }}/jobs/*"
+          - "{{ jenkins_home }}/nodes/*"
+          - "{{ jenkins_home }}/plugins/*.[hj]pi"
+          - "{{ jenkins_home }}/secrets/*"
+          - "{{ jenkins_home }}/userContent/*"
+          - "{{ jenkins_home }}/users/*"
+        dest: "{{ jenkins_backup_path }}"
+        format: gz
+
+    - name: Uploading backup archive file to Ansible master host
+      fetch:
+        src: "{{ jenkins_backup_path }}"
+        dest: files/
+        flat: yes
+
+    - name: Removing archive file from Jenkins server
+      file:
+        path: "{{ jenkins_backup_path }}"
+        state: absent
+...

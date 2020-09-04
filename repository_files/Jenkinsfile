@@ -1,0 +1,69 @@
+#!/usr/bin/env groovy
+
+def CFG_NEXUS_HOST_NAME = "nexus.example.com"
+def CFG_NEXUS_REPOSITORY_PORT = "18093"
+def CFG_NEXUS_REPOSITORY_NAME = "jenkins-test-app1"
+def CFG_IMAGE_TAG = "${CFG_NEXUS_HOST_NAME}:${CFG_NEXUS_REPOSITORY_PORT}/${CFG_NEXUS_REPOSITORY_NAME}"
+
+def CFG_TEST_CONTAINER_NAME = "test-app1"
+
+def CFG_TEST_ENV_NAME = "http://jenkins.example.com"
+def CFG_TEST_ENV_PORT = "8081"
+def CFG_TEST_ENV_LINK = "${CFG_TEST_ENV_NAME}:${CFG_TEST_ENV_PORT}"
+
+updateGitlabCommitStatus name: 'Jenkins Pipeline', state: 'pending'
+
+pipeline {
+    agent {
+       label 'master'
+    }
+    options {
+       disableConcurrentBuilds()
+       timestamps()
+       gitLabConnection('local-Gitlab')
+    }
+
+    stages {
+
+       stage('Build image') {
+          steps {
+             echo " ============ Start building image ============ "
+             updateGitlabCommitStatus name: 'Jenkins Pipeline', state: 'running'
+             sh "docker build -t ${CFG_IMAGE_TAG} ."
+          }
+       }
+
+       stage('Test application') {
+          steps {
+             echo " ============ Run application on test environment ============ "
+             sh "docker rm -f ${CFG_TEST_CONTAINER_NAME} 2>/dev/null || true"
+             sh "docker run --name ${CFG_TEST_CONTAINER_NAME} -d -p ${CFG_TEST_ENV_PORT}:80 ${CFG_IMAGE_TAG}"
+             echo "Application started at ${CFG_TEST_ENV_LINK}"
+          }
+       }
+
+       stage('Push image') {
+          steps {
+             echo " ============ Push docker image to Nexus Repository ============ "
+             withCredentials([usernamePassword(credentialsId: 'nexus_user', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                sh "docker login -u $USERNAME -p $PASSWORD ${CFG_NEXUS_HOST_NAME}:${CFG_NEXUS_REPOSITORY_PORT}"
+             }
+             sh "docker push ${CFG_IMAGE_TAG}"
+          }
+       }
+    }
+
+    post {
+       always {
+          echo ' ============ Clean up workspace ============ '
+          // deleteDir() /* Recursively delete the current directory from the workspace */
+          cleanWs() /* required Workspace Cleanup Plugin */
+       }
+       failure {
+          updateGitlabCommitStatus name: 'Jenkins Pipeline', state: 'failed'
+       }
+       success {
+          updateGitlabCommitStatus name: 'Jenkins Pipeline', state: 'success'
+       }
+    }
+}
